@@ -9,7 +9,7 @@ import random
 from math import cos , sin , pi , sqrt , log
 import tkinter as tk
 from tkinter import filedialog , simpledialog
-from PIL import Image, ImageTk , ImageDraw
+from PIL import Image, ImageTk , ImageDraw , ImageOps
 
 def Show(img,loc):
     img = ImgAdjust(img)
@@ -135,7 +135,71 @@ def Gaussian():
     
     Ltitle_text.set('Image with noise')
     Rtitle_text.set('Histogram of  Gaussian noise')
+
+def HarrWavelet(img,level):
+    LL = Image.new('L',(int(img.size[0]/2),int(img.size[0]/2)))
+    HL = LL.copy()
+    LH = LL.copy()
+    HH = LL.copy()
+    LL_pix = LL.load()
+    HL_pix = HL.load()
+    LH_pix = LH.load()
+    HH_pix = HH.load()
+    pix = img.load()
+
+    for i in range(0,img.size[0],2):
+        for j in range(0,img.size[0],2):
+            LL_pix[i/2,j/2] = int((pix[i,j] + pix[i,j+1] + pix[i+1,j] + pix[i+1,j+1])/4)
+
+    for i in range(0,img.size[0],2):
+        for j in range(0,img.size[0],2):
+            HL_pix[i/2,j/2] = int((pix[i,j] - pix[i,j+1] + pix[i+1,j] - pix[i+1,j+1])/4)
+
+    for i in range(0,img.size[0],2):
+        for j in range(0,img.size[0],2):
+            LH_pix[i/2,j/2] = int((pix[i,j] + pix[i,j+1] - pix[i+1,j] - pix[i+1,j+1])/4)
+
+    for i in range(0,img.size[0],2):
+        for j in range(0,img.size[0],2):
+            HH_pix[i/2,j/2] = int((pix[i,j] - pix[i,j+1] - pix[i+1,j] + pix[i+1,j+1])/4)
+
+    if(level > 1):
+        A = HarrWavelet(LL,level-1)
+    else:
+        A = LL
     
+    output = Image.new('L',(img.size[0],img.size[0]))
+    N = int(img.size[0]/2-1)
+    A_area = (0,0)
+    HL_area = (0,N)
+    LH_area = (N,0)
+    HH_area = (N,N)
+    output.paste(ImageOps.autocontrast(A),A_area)
+    output.paste(ImageOps.autocontrast(HL),HL_area)
+    output.paste(ImageOps.autocontrast(LH),LH_area)
+    output.paste(ImageOps.autocontrast(HH),HH_area)
+    return output
+
+def Wavelet():
+    global haveopen
+    global image_file
+    if(haveopen==False):
+        return
+    if(image_file.size[0]!=image_file.size[1]):
+        if(image_file.size[0]>image_file.size[1]):
+            temp = image_file.size[1]
+        else:
+            temp = image_file.size[0]
+        temp = int(log(temp,2))
+        temp = 2 ** temp
+        image_file = image_file.resize((temp,temp), Image.ANTIALIAS)
+        Show(image_file,'ori')
+    
+    level = simpledialog.askinteger("Input the level", "level",minvalue=1)
+    image_file = HarrWavelet(image_file,level)
+    Show(image_file,'pro')
+
+
 global haveopen
 haveopen = False
 
@@ -154,6 +218,7 @@ editmenu = tk.Menu(menubar, tearoff=0)
 menubar.add_cascade(label='Edit', menu=editmenu)
 editmenu.add_command(label='Histogram', command=Histogram)
 editmenu.add_command(label='Additive white Gaussian noise', command=Gaussian)
+editmenu.add_command(label='Wavelet', command=Wavelet)
 
 window.config(menu=menubar)
 ####
