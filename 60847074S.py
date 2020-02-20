@@ -59,19 +59,12 @@ def SaveFile():
     filepath = filedialog.asksaveasfilename(title='Save',initialfile=filename ,filetypes=[("PNG", ".png"),("JPG",".jpg"),("BMP",".bmp"),("PPM",".ppm")],defaultextension='.txt')
     image_file.save(filepath)
 
-def Histogram():
-    global haveopen
-    global image_file
-    if(haveopen==False):
-        return
-    Ltitle_text.set('Original')
-    Rtitle_text.set('Processed')
-    
+def MakeHistogram(img):
     ### Calculate the sum of each pixel value and do the normalization
     count = [0] * 256
-    pix = image_file.load()
-    for i in range(image_file.size[0]):
-        for j in range(image_file.size[1]):
+    pix = img.load()
+    for i in range(img.size[0]):
+        for j in range(img.size[1]):
             count[pix[i, j]] = count[pix[i, j]] + 1
     count = Normalization(count,600)
     
@@ -82,6 +75,20 @@ def Histogram():
         if(count[i]>0):
             draw.line([(i*2,645),(i*2,645-count[i])],fill=0,width=2)
         draw.rectangle([(i*2,650),(i*2+2,700)],fill=i)
+        
+    return his
+    
+    
+def Histogram():
+    global haveopen
+    global image_file
+    if(haveopen==False):
+        return
+    Ltitle_text.set('Original')
+    Rtitle_text.set('Processed')
+    
+    his = MakeHistogram(image_file)
+    
     Show(his,"pro")
 
 def Normalization(x,size):
@@ -199,7 +206,48 @@ def Wavelet():
     image_file = HarrWavelet(image_file,level)
     Show(image_file,'pro')
 
+def HistogramEqualization():
+    global haveopen
+    global image_file
+    if(haveopen==False):
+        return
+    
+    count = [0] * 256
+    equalized = image_file.copy()
+    pix = equalized.load()
+    for i in range(equalized.size[0]):
+        for j in range(equalized.size[1]):
+            count[pix[i, j]] = count[pix[i, j]] + 1
+    gmin = min(count)
+    Hc = [count[0]]
+    for i in range(1,256):
+        Hc.append(Hc[i-1]+count[i])
+    Hmin = Hc[gmin]
+    T = []
+    
+    for i in range(256):
+        T.append(round((Hc[i]-Hmin)*255/(equalized.size[1]*equalized.size[0]-Hmin)))
 
+    for i in range(equalized.size[0]):
+        for j in range(equalized.size[1]):
+            pix[i,j] = T[pix[i,j]]
+
+    ### Show image ###
+    Lcombine = Image.new('RGBA', (image_file.size[0],image_file.size[1]+350), (0, 0, 0, 0))
+    Rcombine = Image.new('RGBA', Lcombine.size, (0, 0, 0, 0))
+    Lcombine.paste(image_file,(0,0))
+    Rcombine.paste(equalized,(0,0))
+    Lhis = MakeHistogram(image_file)
+    Lhis = Lhis.resize((image_file.size[0],330), Image.ANTIALIAS)
+    Rhis = MakeHistogram(equalized)
+    Rhis = Rhis.resize((image_file.size[0],330), Image.ANTIALIAS)
+    Lcombine.paste(Lhis,(0,image_file.size[1]+20))
+    Rcombine.paste(Rhis,(0,image_file.size[1]+20))
+    Show(Lcombine,'ori')
+    Show(Rcombine,"pro")
+    
+	
+	
 global haveopen
 haveopen = False
 
@@ -219,6 +267,7 @@ menubar.add_cascade(label='Edit', menu=editmenu)
 editmenu.add_command(label='Histogram', command=Histogram)
 editmenu.add_command(label='Additive white Gaussian noise', command=Gaussian)
 editmenu.add_command(label='Wavelet', command=Wavelet)
+editmenu.add_command(label='Histogram equalization', command=HistogramEqualization)
 
 window.config(menu=menubar)
 ####
