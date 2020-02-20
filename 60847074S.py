@@ -10,6 +10,7 @@ from math import cos , sin , pi , sqrt , log
 import tkinter as tk
 from tkinter import filedialog , simpledialog
 from PIL import Image, ImageTk , ImageDraw , ImageOps
+import numpy as np
 
 def Show(img,loc):
     img = ImgAdjust(img)
@@ -220,13 +221,13 @@ def HistogramEqualization():
             count[pix[i, j]] = count[pix[i, j]] + 1
     gmin = min(count)
     Hc = [count[0]]
-    for i in range(1,256):
+    for i in range(1,255):
         Hc.append(Hc[i-1]+count[i])
     Hmin = Hc[gmin]
     T = []
     
-    for i in range(256):
-        T.append(round((Hc[i]-Hmin)*255/(equalized.size[1]*equalized.size[0]-Hmin)))
+    for i in range(255):
+        T.append(round((Hc[i]-Hmin)*254/(equalized.size[1]*equalized.size[0]-Hmin)))
 
     for i in range(equalized.size[0]):
         for j in range(equalized.size[1]):
@@ -246,11 +247,74 @@ def HistogramEqualization():
     Show(Lcombine,'ori')
     Show(Rcombine,"pro")
     
-	
-	
+def Convolution():
+    global haveopen
+    if(haveopen==False):
+        return
+    global mask
+    global ask
+    mask = []
+    ask = tk.Toplevel()
+    ask.grab_set()
+    label = tk.Label(ask, text="Input mask size & value:")
+    label.pack()
+    
+    scale = tk.Scale(ask,from_=3,to=11, orient=tk.HORIZONTAL ,showvalue=0, length=200, resolution=2.0, command=MakeMask)
+    scale.pack()
+    
+    global mask_frame
+    mask_frame = tk.Frame(ask)
+    mask_frame.pack()
+
+    submit = tk.Button(ask,text='Submit',command=DoConvolution)
+    submit.pack()
+
+def MakeMask(size):
+    if(len(mask)!=0):
+        for temp in mask:
+            for i in temp:
+                i.destroy()
+    mask.clear()
+    size = int(size)-1
+    for i in range(size):
+        temp = []
+        for j in range(size):
+            temp.append(tk.Entry(mask_frame,width=3))
+            temp[j].grid(row=i,column=j)
+        mask.append(temp)
+
+def DoConvolution():
+    global image_file
+    mask_list = []
+    #mask = np.arange(9)
+    #mask = np.resize(mask,(3,3))
+    
+    for t in mask:
+        temp = []
+        for m in t:
+            temp.append(float(m.get()))
+        mask_list.append(temp)
+    
+    #mask_list = list(mask)
+    mask_size = int((len(mask_list)-1)/2)
+    pix = image_file.load()
+    pixnp = np.asarray(image_file)
+    #print(pixnp)
+    for i in range(mask_size,image_file.size[1]-mask_size-1):
+        for j in range(mask_size,image_file.size[0]-mask_size-1):
+            temp = pixnp[i-mask_size:i+mask_size+1,j-mask_size:j+mask_size+1]
+            pix[j,i] = int(np.sum(np.array(list(map(lambda x,y: x * y, temp,mask_list)))))
+            #print(np.sum(np.array(list(map(lambda x,y: x * y, temp,mask_list))))/np.sum(np.array(mask_list)))
+            #break
+        #break
+    Show(image_file,'pro')
+    ask.destroy()
+
+
 global haveopen
 haveopen = False
 
+global window
 window = tk.Tk()
 window.title('AIP60847074S')
 window.geometry('1200x700')
@@ -268,6 +332,7 @@ editmenu.add_command(label='Histogram', command=Histogram)
 editmenu.add_command(label='Additive white Gaussian noise', command=Gaussian)
 editmenu.add_command(label='Wavelet', command=Wavelet)
 editmenu.add_command(label='Histogram equalization', command=HistogramEqualization)
+editmenu.add_command(label='Convolution', command=Convolution)
 
 window.config(menu=menubar)
 ####
